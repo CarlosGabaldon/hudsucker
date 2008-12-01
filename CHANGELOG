@@ -1,0 +1,38 @@
+ChangeLog:
+    2008-08-19, Hung Luu: Initial release with limited error handling and hardcoded DEV paths
+    2008-09-03, Hung Luu:
+        - Expose python-memcached as a limited service so Service Registry Admin can get/set from/to memcached.
+        - Replace individual restful parameters with one "requesturl" parameter.
+    2008-09-09, Hung Luu:
+        - Renamed "requesturl" to "request_path".
+        - Renamed "expiryminutes" to "expiry_minutes".
+        - Added a diagnostics service command to grab log entries based on a date range.
+    2008-09-15, Hung Luu:
+        - Added a Win32 event handler to ignore the logoff event.
+        - Strip leading and trailing whitespace from URL patterns.
+    2008-09-17, Hung Luu:
+        - Guard against possible unicode characters in the remote HTML.
+        - Load base URL and URL patterns from SDW as a fallback.
+        - Make environmental settings configurable.
+    2008-09-22, Hung Luu:
+        - Allow configurable HTTP timeout.
+    2008-10-13, Hung Luu:
+        - Removed log file reading from diagnostics, Service Proxy Console can read the log files directly.
+        - Added a diagnostics service command to ping other service proxies running in the same web farm.
+        - Check memcached first for the content expiry minutes, then fallback to Settings.config.
+        - Refactor diagnostics params formatting.
+    2008-11-17, Hung Luu:
+        - Write content meta in the first few bytes to help clients better parse response:
+            First 2 bytes: x number of bytes to read after the first 2 bytes, which should represent the content length.
+            Next x bytes: y number of bytes in the content.
+            Next y bytes: The actual content.
+        - Changed name to 'Content Proxy'.
+        - Support cache meta in ModulePrefs of Gadget XML.
+        - Cleanup of cache set ops with expiration.
+        - Converted all print statements to print function calls for Python 3000.
+        - Added a stats command for diagnostics.
+    2008-11-24, Carlos Gabaldon:
+		- refactoring
+
+    2008-12-1, Carlos Gabaldon:
+		- Added initial code to google
