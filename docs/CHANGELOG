@@ -36,3 +36,5 @@ ChangeLog:
 
     2008-12-1, Carlos Gabaldon:
 		- Added initial code to google
+	2008-12-12 Carlos Gabaldon
+		- Major Refactoring 
