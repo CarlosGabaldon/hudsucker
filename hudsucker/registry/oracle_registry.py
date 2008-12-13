@@ -13,7 +13,7 @@ except Exception:
 class OracleRegistry(registry.Registry):
     """docstring for OracleRegistry"""
     def __init__(self, settings):
-        super(Registry, self).__init__(settings=settings)
+        super(registry.Registry, self).__init__(settings=settings)
         try:
              self.db = cx_Oracle.SessionPool(settings.database['username'], 
                  Settings.database['password'], settings.database['dsn'], 

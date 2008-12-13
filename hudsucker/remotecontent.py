@@ -9,21 +9,21 @@ Hudsucker entry point.
 from twisted.internet import protocol
 from twisted.protocols.basic import LineOnlyReceiver
 from twisted.application import service, internet
-import config.settings
-import server.contentproxyfactory
+from config.settings import Settings
+from server.contentproxyfactory import ContentProxyFactory
 #import registry.oracle_registry
 #import registry.sqllite_registry
-import registry.yaml_registry
+from registry.yaml_registry import YamlRegistry
 
 def main():
     
     # todo look up registry in configuration ...
     #registry = oracle_registry.OracleRegistry(Settings)
     #registry = sqllite_registry.SQLLiteRegistry(Settings)
-    registry = yaml_registry.YamlRegistry(Settings)
+    registry = YamlRegistry(Settings)
     
     application = service.Application('remotecontent')
-    internet.TCPServer(int(settings.Settings.server['port']), ContentProxyFactory(registry=registry)).setServiceParent(application)
+    internet.TCPServer(int(Settings.server['port']), ContentProxyFactory(registry=registry)).setServiceParent(application)
 
     from twisted.python.runtime import platformType
     if platformType == "win32":

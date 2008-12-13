@@ -16,11 +16,12 @@ except Exception:
 class YamlRegistry(registry.Registry):
     """docstring for YamlRegistry"""
     def __init__(self, settings):
-        super(Registry, self).__init__(settings=settings)
         try:
-            stream = file('./db/registry.yaml','r')
+            stream = file('registry/db/registry.yaml','r')
             self.db = yaml.load(stream)
         except Exception, detail:
             print("WARNING: Can't connect to database: %s." % detail)
             self.db = None
+        self.cache = None    
+        super(registry.Registry, self).__init__(settings=settings)
         
