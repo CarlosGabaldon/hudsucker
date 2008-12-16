@@ -13,7 +13,7 @@ except Exception:
 class SqlLiteRegistry(registry.Registry):
     """docstring for OracleRegistry"""
     def __init__(self, settings):
-        super(registry.Registry, self).__init__(settings=settings)
+        super(SqlLiteRegistry, self).__init__(settings=settings)
         try:
             self.db = conn = sqlite3.connect('./db/registry')
         except Exception, detail:
