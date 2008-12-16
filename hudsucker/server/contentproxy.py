@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from twisted.protocols.basic import LineOnlyReceiver
+from config.settings import Settings
 
 
 CONTENT_EXPIRY_MINUTES = 1440
@@ -7,10 +8,10 @@ class ContentProxy(LineOnlyReceiver):
     def __init__(self):
         self.service = ''
         self.params = {}
-
+    
     def connectionMade(self):
         self.factory.clients.append(self)
-
+    
     def connectionLost(self, reason):
         self.factory.clients.remove(self)
     
@@ -37,7 +38,7 @@ class ContentProxy(LineOnlyReceiver):
                     self._process_diagnostics()
                 else:
                     self._process_remote_content()
-
+    
     def _process_memcached(self):
         key = self.params.get('key')
         if not key:
@@ -68,7 +69,7 @@ class ContentProxy(LineOnlyReceiver):
                     self._sendResponse(str(value))
                 else:
                     self._sendResponse('KeyDoesntExist')
-
+    
     def _process_diagnostics(self):
         content = ''
         cmd = self.params.get('cmd')
@@ -121,10 +122,13 @@ class ContentProxy(LineOnlyReceiver):
         if content:
             self._sendResponse(content)
         self.transport.loseConnection()
-        
+    
     def _process_remote_content(self):
         widget = self.params.get('widget')
         request_path = self.params.get('request_path')
+        format = 'gadgetmini'
+        if self.params.has_key('format'):
+            format = str(self.params.get('format'))
         if not widget or not request_path:
             print("ERROR: Missing 'widget' and/or 'request_path' JSON keys.")
             self.transport.loseConnection()
@@ -143,41 +147,19 @@ class ContentProxy(LineOnlyReceiver):
                 # URL patterns stored in memcached as Python list.
                 url_patterns = cache_dict.get(url_patterns_key)
                 if not base_url or not url_patterns:
-                    # Try loading from database.
-                    if self.factory.dbpool:
-                        db = None
-                        try:
-                            print('Attempting to load base URL and URL patterns from database.')
-                            db = self.factory.dbpool.acquire()
-                            cursor = db.cursor()
-                            cursor.arraysize = 50
-                            sql = """
-                                select s.url base_url, u.pattern url_pattern
-                                from service_provider s, widget w, widget_url_pattern u
-                                where s.name = :service_name and w.name = :widget_name
-                                """
-                            cursor.execute(sql, service_name=self.service, widget_name=widget)
-                            rows = cursor.fetchall()
-                            if rows:
-                                url_patterns = []
-                                base_url = rows[0][0]
-                                for row in rows:
-                                    url_patterns.append(row[1])
-                            else:
-                                print("WARNING: No rows for service '%s' and widget '%s'." % (self.service, widget))
-                            if base_url and url_patterns:
-                                mapping = {base_url_key: base_url, url_patterns_key: url_patterns}
-                                self.factory.cache_set_multi(mapping)
-                        except Exception, detail:
-                            print("WARNING: Can't load base URL and URL patterns from database: %s." % detail)
-                        finally:
-                            if db:
-                                self.factory.dbpool.release(db)
+                    # Try loading from service registry.
+                    if self.factory.service_registry:
+                        base_url, url_patterns = \
+                            self.factory.service_registry.load_service(app=self.service,service=widget)
+                        print('app=%s, service=%s \n\tbase_url,url_patterns = (%s,%s)' % (self.service,widget,base_url,url_patterns))
+                    if base_url and url_patterns:
+                        mapping = {base_url_key: base_url, url_patterns_key: url_patterns}
+                        self.factory.cache_set_multi(mapping)
                 if not base_url:
-                    print("ERROR: Can't load base URL: " + base_url_key)
+                    print("ERROR: Can't load base URL: (%s,%s)" % (base_url_key,base_url))
                     self.transport.loseConnection()
                 if not url_patterns:
-                    print("ERROR: Can't load URL patterns: " + url_patterns_key)
+                    print("ERROR: Can't load URL patterns: (%s,%s)" % (url_patterns_key,url_patterns))
                     self.transport.loseConnection()
                 if base_url and url_patterns:
                     import re
@@ -202,7 +184,9 @@ class ContentProxy(LineOnlyReceiver):
                         try:
                             print('HTTP request: ' + widget_url)
                             resp, gadget_xml = http.request(widget_url)
-                            if resp.status == 200:
+                            if resp.status == 200 and format in ['html','xml']:
+                                self._sendResponse(gadget_xml)
+                            elif resp.status == 200 and format == 'gadgetmini':
                                 from xml.etree import ElementTree
                                 doc = ElementTree.fromstring(gadget_xml)
                                 content_element = doc.find('Content')
