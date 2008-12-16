@@ -1,0 +1,18 @@
+---
+service: workshops
+base_url: http://localhost
+params:
+    widget: nearme
+    url_pattern: /{service}/{zip}/
+---
+service: workshops
+base_url: http://localhost
+params:
+    widget: anotherwidget
+    url_pattern: /{service}/{zip}/{another}
+---
+service: delicious.com
+base_url: http://delicious.com
+params:
+    widget: tag
+    url_pattern: /tag/widget

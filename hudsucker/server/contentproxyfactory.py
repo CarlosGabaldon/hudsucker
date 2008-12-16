@@ -5,10 +5,13 @@ import contentproxy
 class ContentProxyFactory(protocol.Factory):
     protocol = contentproxy.ContentProxy
     clients = []
-    
+    dbpool = None
+    service_registry = None
+    _cache = None
     def __init__(self, registry):
-        dbpool = registry.db
-        _cache = registry.cache  
+        ContentProxyFactory.dbpool = registry.db
+        ContentProxyFactory.service_registry = registry
+        ContentProxyFactory._cache = registry.cache  
     
     @staticmethod
     def cache_set(key, value, expiry_minutes = 0):
