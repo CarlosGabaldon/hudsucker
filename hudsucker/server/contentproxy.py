@@ -143,9 +143,15 @@ class ContentProxy(LineOnlyReceiver):
             if content:
                 self._sendResponse(content)
             else:
-                base_url = cache_dict.get(base_url_key)
-                # URL patterns stored in memcached as Python list.
-                url_patterns = cache_dict.get(url_patterns_key)
+                if 'base_url' in self.params:
+                    base_url = self.params['base_url']
+                else:
+                    base_url = cache_dict.get(base_url_key)
+                if 'url_patterns' in self.params:
+                    url_patterns = self.params['url_patterns']
+                else:
+                    # URL patterns stored in memcached as Python list.
+                    url_patterns = cache_dict.get(url_patterns_key)
                 if not base_url or not url_patterns:
                     # Try loading from service registry.
                     if self.factory.service_registry:
