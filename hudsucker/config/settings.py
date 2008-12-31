@@ -7,11 +7,12 @@ class Settings(object):
         database = _doc.find('Database').attrib
         memcached = _doc.find('Memcached').attrib
         server = _doc.find('Server').attrib
-        service_registry = _doc.find('ServiceRegistry').attrib
+        service_registry = _doc.find('ServiceRegistry')
         if service_registry == None:
-            svc_node = ElementTree.SubElement(_doc, "ServiceRegistry")
+            svc_node = ElementTree.SubElement(_doc.getroot(), "ServiceRegistry")
             svc_node.set("type", "YamlRegistry")
+        else:
+            service_registry = service_registry.attrib
     except Exception, detail:
         print("ERROR: Can't load settings: %s." % detail)
         raise
-
