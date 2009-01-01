@@ -14,23 +14,29 @@ except Exception:
 
 
 class YamlRegistry(registry.Registry):
-    """docstring for YamlRegistry"""
-    def __init__(self, settings):
+    """A Service Definition registry that stores info in local 
+    yaml file and stores in memory (won't be reloaded 
+    if yaml is changed while twistd is running)"""
+    def __init__(self, settings, yaml_file='registry/db/registry.yaml'):
         super(YamlRegistry, self).__init__(settings)
         try:
-            stream = file('registry/db/registry.yaml','r')
-            self.db = yaml.load_all(stream)
+            stream = file(yaml_file,'r')
+            self.db = [svc for svc in yaml.load_all(stream)]
         except Exception, detail:
-            print("WARNING: Can't connect to database: %s." % detail)
+            print("WARNING: Can't get YAML file: %s." % detail)
             self.db = None
     
-    def load_service(self,app='hudsucker',service='ping'):
-        """Loads service Registry"""
-        base_url = None
-        url_patterns = []
+    def load_service(self,service=None):
+        """
+        Returns service Definition after population additiona
+        info from registry
+        """
+        if service is None:
+            raise Exception("must have service defintion to know which to load")
+        found = False
         for svc in self.db:
-            if svc['service'] == app and svc['params']['widget'] == service:
-                base_url = svc['base_url']
-                url_patterns.append(svc['params']['url_pattern'])
-        
-        return base_url,url_patterns
+            if svc['service'] == service.name and svc['app'] == service.app:
+                found = True
+                service.base_url = svc['base_url']
+                service.url_patterns.append(svc['params']['url_pattern'])
+        return service

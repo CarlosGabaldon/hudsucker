@@ -4,6 +4,8 @@ Testing framework for hudsucker
 import sys, logging, unittest, string
 from socket import *
 from contentclient import TCPServiceResponse
+from server.contentproxy import parse_hudsucker_request, \
+    ServiceDefinition
 
 def sock_data(sock):
     """Get to end of stream"""
@@ -27,7 +29,7 @@ class ServicesTests(unittest.TestCase):
     def tearDown(self):
         self.sock.close()
     
-    def test_memcached(self):                        
+    def test_memcached(self):
         """memcached tests memcached storage"""  
         self.sock.send('{"service": "memcached", "params": {"key": "some_key", "expiry_minutes": "60"}}\r\n')
         resp = TCPServiceResponse(self.sock.recv(1024))
@@ -39,13 +41,13 @@ class ServicesTests(unittest.TestCase):
         resp = TCPServiceResponse(self.sock.recv(1024))
         assert str(resp.content) == 'a_new_value'
     
-    def test_diagnostics(self):                      
+    def test_diagnostics(self):
         """diagnostics"""
         self.sock.send("""{"service": "diagnostics", "params": {"cmd": "stats"}}\r\n""")
         resp = TCPServiceResponse(self.sock.recv(1024))
         assert resp.content == 'Current connections: 1.'
     
-    def test_remote_content(self):                      
+    def test_remote_content(self):
         """get widget remote content"""
         self.sock.send('''{"service": "delicious.com", "params": {"widget": "tag", 
                                             "request_path": "/tag/widgets",
@@ -61,16 +63,17 @@ class ServicesTests(unittest.TestCase):
         assert resp.content == None, 'should return nothing as it doesnt exist'
         assert resp.is_success() == False
     
-    def test_no_registry_needed(self):                      
-        """Test the ability to create full functional service with no registry"""
-        self.sock.send('''{"service": "delicious.com", 
+    def test_no_registry_needed(self):
+        """Test the ability to create fully functional service with no registry"""
+        self.sock.send('''{"app": "delicious.com", 
+                            "service": "rss_feed_for_test_only",
                             "params": {
-                                "widget": "rss_feed_for_test_only", 
                                 "request_path": "/v2/rss/tag/python?count=5",
                                 "format":"xml",
                                 "base_url":  "http://feeds.delicious.com",
                                 "url_patterns": ["/v2/rss"]
-                            }
+                            },
+                            "version":"v1.1"
                         }\r\n''')
         resp = TCPServiceResponse(sock_data(self.sock))
         #print('resp.content for delicius request:  %s' % resp.content)
@@ -89,6 +92,33 @@ class ServicesTests(unittest.TestCase):
         resp = TCPServiceResponse('v1.0\r\n200\r\n22\r\nsome_value\r\n_more_here')
         assert str(resp.content) == 'some_value\r\n_more_here'
     
+    def test_request_parser(self):
+        """Test out the Old/New/Versioned compaitility on requests"""
+        sd = parse_hudsucker_request('{"service": "memcached", "params": {"key": "some_key", "value": "some_value", "expiry_minutes": "60"}}\r\n')
+        assert sd.cache_time == 3600
+        assert sd.name == 'memcached'
+        assert sd.app == 'hudsucker'
+        assert sd.data.has_key('key')
+        assert sd.data['value'] == 'some_value'
+        sd = parse_hudsucker_request('{"service": "workshops", "params": {"widget": "nearme", "request_path": "/nearme/123/08/2008/50/"}}\r\n')
+        assert sd.cache_time == 0
+        assert sd.name == 'nearme'
+        assert sd.app == 'workshops'
+        assert sd.method_url == '/nearme/123/08/2008/50/'
+        sd = parse_hudsucker_request('''{"app":"hudsucker", "service": "memcached", "version":"v1.1",
+            "params": {"key": "some_key", "value": "some_value", "expiry_minutes": "60"}}\r\n''')
+        assert sd.cache_time == 3600
+        assert sd.name == 'memcached'
+        assert sd.app == 'hudsucker'
+        assert sd.data.has_key('key')
+        assert sd.data['value'] == 'some_value'
+        sd = parse_hudsucker_request('''{"app": "workshops", "service":"nearme", "version":"v1.1",
+            "params": {"request_path": "/nearme/123/08/2008/50/"}}''')
+        assert sd.cache_time == 0
+        assert sd.name == 'nearme'
+        assert sd.app == 'workshops'
+        assert sd.method_url == '/nearme/123/08/2008/50/'
+    
     def test_yaml_registry(self):
         """Test that we can load the YAML registry
             and sample file"""
@@ -96,19 +126,28 @@ class ServicesTests(unittest.TestCase):
         from registry.yaml_registry import YamlRegistry
         registry = YamlRegistry(Settings)
         assert registry.db is not None
-        base_url, url_patterns = registry.load_service(app='workshops',service='nearme')
-        assert base_url == 'http://localhost'
-        assert url_patterns[0] == '/{service}/{zip}/'
+        sd = registry.load_service(ServiceDefinition('nearme',app='workshops'))
+        assert sd.base_url == 'http://localhost'
+        assert sd.url_patterns[0] == '/{service}/{zip}/'
+        sd = parse_hudsucker_request('''{"service": "delicious.com", "params": {"widget": "tag", 
+                                            "request_path": "/tag/widgets",
+                                            "format":"html"}}\r\n''')
+        sd = registry.load_service(sd)
+        assert sd.app == 'delicious.com'
+        assert sd.name == 'tag'
+        assert sd.base_url == 'http://delicious.com'
     
     def test_demisauce_registry(self):
         from config.settings import Settings
         from registry.demisauce_registry import DemisauceRegistry
         registry = DemisauceRegistry(Settings)
         #assert registry.db is not None
-        base_url, url_patterns = registry.load_service(app='demisauce',service='comment')
+        return
+        sd = registry.load_service(ServiceDefinition('comments',app='demisauce'))
         #print('base_url, url_patterns = %s, %s' % (base_url, url_patterns))
         assert str(base_url) == 'http://localhost:4951'
         assert url_patterns == []
+        #TODO:  this is bogus, finish
     
 
 if __name__ == "__main__":

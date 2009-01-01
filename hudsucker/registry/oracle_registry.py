@@ -8,7 +8,7 @@ except Exception:
              Please install from here:
              http://python.net/crew/atuining/cx_Oracle/
             """)
-
+from server.contentproxyfactory import ContentProxyFactory
 
 class OracleRegistry(registry.Registry):
     """docstring for OracleRegistry"""
@@ -23,34 +23,43 @@ class OracleRegistry(registry.Registry):
             print("WARNING: Can't connect to database: %s." % detail)
             self.db = None
     
-    def load_service(self,app='hudsucker',service='ping'):
+    def load_service(self,service=None):
         """Load Service definition from oracle db"""
         db = None
-        base_url = None
-        url_patterns = []
-        try:
-            print('Attempting to load base URL and URL patterns from database.')
-            db = self.db.acquire()
-            cursor = db.cursor()
-            cursor.arraysize = 50
-            sql = """
-                select s.url base_url, u.pattern url_pattern
-                from service_provider s, widget w, widget_url_pattern u
-                where s.name = :service_name and w.name = :widget_name
-                """
-            cursor.execute(sql, service_name=self.service, widget_name=widget)
-            rows = cursor.fetchall()
-            if rows:
-                url_patterns = []
-                base_url = rows[0][0]
-                for row in rows:
-                    url_patterns.append(row[1])
-            else:
-                print("WARNING: No rows for service '%s' and widget '%s'." % (self.service, widget))
-        except Exception, detail:
-            print("WARNING: Can't load base URL and URL patterns from database: %s." % detail)
-        finally:
-            if db:
-                self.db.release(db)
+        service_def_key = 'service_def_%s_%s' % (service.app,service.name)
+        service_def = ContentProxyFactory.get(service_def_key)
+        if not service_def:
+            try:
+                print('Attempting to load base URL and URL patterns from database.')
+                db = self.db.acquire()
+                cursor = db.cursor()
+                cursor.arraysize = 50
+                sql = """
+                    select s.url base_url, u.pattern url_pattern
+                    from service_provider s, widget w, widget_url_pattern u
+                    where s.name = :service_name and w.name = :widget_name
+                    """
+                cursor.execute(sql, service_name=service.app, widget_name=service.name)
+                rows = cursor.fetchall()
+                if rows:
+                    service.base_url = rows[0][0]
+                    for row in rows:
+                        service.url_patterns.append(row[1])
                 
-        return base_url, url_patterns
+                else:
+                    print("WARNING: No rows for app(service) '%s' and widget(service) '%s'." % (service.app, service.name))
+            except Exception, detail:
+                print("WARNING: Can't load base URL and URL patterns from database: %s." % detail)
+            finally:
+                if db:
+                    self.db.release(db)
+            service_def = ServiceDefinition(service.name,app=service.app)
+            service_def.base_url = service.base_url
+            service_def.url_patterns = service.url_patterns
+            ContentProxyFactory.set(service_def_key,service_def)
+        else:
+            # now transfer service_def -> service
+            service.base_url = service_def.base_url
+            service.url_patterns = service_def.url_patterns
+        
+        return service
