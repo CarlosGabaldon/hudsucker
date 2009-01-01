@@ -16,7 +16,7 @@ class Registry(object):
         self.db = None
         self.cache = memcache.Client(settings.memcached['servers'].split(','))
     
-    def load_service(self,app='hudsucker',service='ping'):
+    def load_service(self,service):
         """Loads service Registry info for app/service"""
         raise NotImplementedError("Must be implemented by Registry")
     

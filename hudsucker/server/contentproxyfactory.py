@@ -14,9 +14,9 @@ class ContentProxyFactory(protocol.Factory):
         ContentProxyFactory._cache = registry.cache  
     
     @staticmethod
-    def cache_set(key, value, expiry_minutes = 0):
+    def cache_set(key, value, expiry_seconds = 0):
         # Convert expiry minutes to seconds as expected by the memcached client.
-        return ContentProxyFactory._cache.set(key, value, expiry_minutes * 60)
+        return ContentProxyFactory._cache.set(key, value, expiry_seconds)
         
     @staticmethod
     def cache_get(key):
