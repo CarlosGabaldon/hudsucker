@@ -1,11 +1,17 @@
 """
 Testing framework for hudsucker
 """
-import sys, logging, unittest, string
+import sys, logging, unittest, string, os
 from socket import *
-from contentclient import TCPServiceResponse
-from server.contentproxy import parse_hudsucker_request, \
+from hudsuckerpy.contentclient import TCPServiceResponse
+from hudsucker.config.settings import Settings
+from hudsucker.contentproxy import parse_hudsucker_request, \
     ServiceDefinition
+from hudsucker.remotecontent import here as base_dir
+config_file = os.path.abspath('%s/config/settings.config' % (base_dir))
+settings = Settings.load_xml(config=config_file )
+yaml_file = os.path.abspath('%s/registry/db/registry.yaml' % (base_dir))
+#registry = YamlRegistry(Settings,yaml_file)
 
 def sock_data(sock):
     """Get to end of stream"""
@@ -122,9 +128,8 @@ class ServicesTests(unittest.TestCase):
     def test_yaml_registry(self):
         """Test that we can load the YAML registry
             and sample file"""
-        from config.settings import Settings
-        from registry.yaml_registry import YamlRegistry
-        registry = YamlRegistry(Settings)
+        from hudsucker.registry.yaml_registry import YamlRegistry
+        registry = YamlRegistry(Settings,yaml_file)
         assert registry.db is not None
         sd = registry.load_service(ServiceDefinition('nearme',app='workshops'))
         assert sd.base_url == 'http://localhost'
@@ -138,15 +143,14 @@ class ServicesTests(unittest.TestCase):
         assert sd.base_url == 'http://delicious.com'
     
     def test_demisauce_registry(self):
-        from config.settings import Settings
-        from registry.demisauce_registry import DemisauceRegistry
-        registry = DemisauceRegistry(Settings)
+        from hudsucker.registry.demisauce_registry import DemisauceRegistry
+        #registry = DemisauceRegistry(Settings)
         #assert registry.db is not None
         return
-        sd = registry.load_service(ServiceDefinition('comments',app='demisauce'))
+        #sd = registry.load_service(ServiceDefinition('comments',app='demisauce'))
         #print('base_url, url_patterns = %s, %s' % (base_url, url_patterns))
-        assert str(base_url) == 'http://localhost:4951'
-        assert url_patterns == []
+        #assert str(base_url) == 'http://localhost:4951'
+        #assert url_patterns == []
         #TODO:  this is bogus, finish
     
 

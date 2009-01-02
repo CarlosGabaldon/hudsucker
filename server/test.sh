@@ -10,8 +10,8 @@ kill `cat twistd.pid`
 dir=`pwd`   # assume we are going to work in current directory
 
 # run twistd in background and send logs to log.log
-twistd -y remotecontent.py -l ../log.log -d $dir
+twistd -y hudsucker/remotecontent.py -l ../../log.log -d $dir
 
-python test_client.py
+python hudsucker/tests/test_server.py
 
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from twisted.protocols.basic import LineOnlyReceiver
-from config.settings import Settings
+from hudsucker.config.settings import Settings
 
 HUDSUCKER_SERVICES = ['diagnostics', 'memcached']
 

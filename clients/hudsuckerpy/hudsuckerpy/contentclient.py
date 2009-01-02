@@ -19,7 +19,7 @@ class TCPServiceResponse(object):
             return False
     
     def parse_response(self,data):
-        """Create a clone of this service definition"""
+        """"""
         #print 'parsing data:  %s' % data
         lines = [line for line in data.split('\r\n')]
         if len(lines[0]) > 4:

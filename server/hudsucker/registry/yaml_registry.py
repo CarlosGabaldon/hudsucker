@@ -17,12 +17,13 @@ class YamlRegistry(registry.Registry):
     """A Service Definition registry that stores info in local 
     yaml file and stores in memory (won't be reloaded 
     if yaml is changed while twistd is running)"""
-    def __init__(self, settings, yaml_file='registry/db/registry.yaml'):
+    def __init__(self, settings, yaml_file='hudsucker/registry/db/registry.yaml'):
         super(YamlRegistry, self).__init__(settings)
         try:
             stream = file(yaml_file,'r')
             self.db = [svc for svc in yaml.load_all(stream)]
         except Exception, detail:
+            raise Exception(yaml_file)
             print("WARNING: Can't get YAML file: %s." % detail)
             self.db = None
     
