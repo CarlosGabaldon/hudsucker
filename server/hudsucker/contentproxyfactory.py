@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from twisted.internet import protocol
-import contentproxy
+from hudsucker import contentproxy
 
 class ContentProxyFactory(protocol.Factory):
     protocol = contentproxy.ContentProxy
