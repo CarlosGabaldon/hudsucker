@@ -84,13 +84,12 @@ def parse_hudsucker_request(data):
 CONTENT_EXPIRY_MINUTES = 1440
 class ContentProxy(LineOnlyReceiver):
     def __init__(self):
-        self.service = ''
-        self.service_def = None
+        self.service = None
         self.params = {}
     
     def requires_data_keys(self,keys):
         for key in keys:
-            if not self.service_def.data.has_key(key):
+            if not self.service.data.has_key(key):
                 raise Exception('Missing ...., "params":{"%s":"value"}' % (key))
     
     def connectionMade(self):
@@ -100,24 +99,21 @@ class ContentProxy(LineOnlyReceiver):
         self.factory.clients.remove(self)
     
     def lineReceived(self, data):
-        import simplejson
-        command = {}
         print('Input data: ' + data)
-        command = simplejson.loads(data)
-        self.service_def = parse_hudsucker_request(data)
+        
         try:
-            pass
+            self.service = parse_hudsucker_request(data)
         except Exception, detail:
             print('ERROR: Decoding JSON input: %s' % detail)
             self.transport.loseConnection()
         else:
-            if self.service_def.app == 'hudsucker':
-                if self.service_def.name == 'memcached':
+            if self.service.app == 'hudsucker':
+                if self.service.name == 'memcached':
                     self._process_memcached()
-                elif self.service_def.name == 'diagnostics':
+                elif self.service.name == 'diagnostics':
                     self._process_diagnostics()
                 else:
-                    raise NotImplementedError('Not implemented %s' % service_def.name)
+                    raise NotImplementedError('Not implemented %s' % self.service.name)
             else:
                 self._process_remote_content()
     
@@ -130,16 +126,16 @@ class ContentProxy(LineOnlyReceiver):
         """
         self.requires_data_keys(['key'])
         # Memcached key cannot be unicode.
-        key = str(self.service_def.data['key'])
-        if self.service_def.data.has_key('value'):
+        key = str(self.service.data['key'])
+        if self.service.data.has_key('value'):
             # Store strings in utf-8 encoding.
-            value = self.service_def.data['value']
+            value = self.service.data['value']
             if isinstance(value, basestring):
                 value = value.encode('utf-8', 'replace')
             # Store value as Python object, or as string?
             set_result = False
             try:
-                cache_time = float(self.service_def.cache_time)
+                cache_time = float(self.service.cache_time)
                 set_result = bool(self.factory.cache_set(key, value, cache_time))
             except Exception, detail:
                 set_result = "Can't cache key '%s': %s."  % (key, detail)
@@ -154,12 +150,12 @@ class ContentProxy(LineOnlyReceiver):
     def _process_diagnostics(self):
         content = ''
         self.requires_data_keys(['cmd'])
-        cmd = self.service_def.data['cmd']
+        cmd = self.service.data['cmd']
         if cmd == 'ping':
             import socket
-            servers = self.service_def.data['servers']
+            servers = self.service.data['servers']
             if servers:
-                timeout_seconds = self.service_def.data['timeout_seconds']
+                timeout_seconds = self.service.data['timeout_seconds']
                 if not timeout_seconds:
                     timeout_seconds = '5'
                 port = int(Settings.server['port'])
@@ -178,7 +174,7 @@ class ContentProxy(LineOnlyReceiver):
             import re, os
             pattern = 'twistd[.]log[.].*$'
             regex = re.compile(pattern)
-            filename = self.service_def.data['filename']
+            filename = self.service.data['filename']
             if not filename:
                 found_none = True
                 names = os.listdir(os.getcwd())
@@ -210,7 +206,7 @@ class ContentProxy(LineOnlyReceiver):
         Fulfill proxyed service request
         First get service definition, then fulfill
         """
-        sd = self.service_def
+        sd = self.service
         #TODO:  hash this to ensure it is a short key
         content_key = "app_%s_%s_%s" % (sd.app,sd.name,sd.get_url())
         content = self.factory.cache_get(content_key)
@@ -218,10 +214,10 @@ class ContentProxy(LineOnlyReceiver):
             self._sendResponse(content)
         else:
             # Try loading from service registry.
-            if self.factory.service_registry and self.service_def.isdefined == False:
-                self.factory.service_registry.load_service(service=self.service_def)
+            if self.factory.service_registry and self.service.isdefined == False:
+                self.factory.service_registry.load_service(service=self.service)
                 print('app=%s, service=%s, base_url=%s,url_pattern = %s' % (sd.app,sd.name,sd.base_url,sd.url_pattern))
-            if not self.service_def.base_url:
+            if not self.service.base_url:
                 print("ERROR: Doesn't have base URL: (%s)" % (sd.base_url))
                 self.transport.loseConnection()
             else:
