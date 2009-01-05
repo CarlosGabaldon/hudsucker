@@ -20,3 +20,15 @@ registry = DemisauceRegistry(Settings)
 application = service.Application('remotecontent')
 internet.TCPServer(int(Settings.server['port']), ContentProxyFactory(registry=registry)).setServiceParent(application)
 
+from twisted.python.runtime import platformType
+if platformType == "win32":
+    import win32api, win32con
+    def sighandler(sig):
+        if sig == win32con.CTRL_LOGOFF_EVENT:
+            return True
+    win32api.SetConsoleCtrlHandler(sighandler, True)
+
+
+if __name__ == '__main__':
+    # run twistd using yaml runner
+    os.system("twistd -y run_proxy_demisaucereg.py -n -d %s" % (here))

@@ -2,6 +2,7 @@
 from twisted.protocols.basic import LineOnlyReceiver
 from hudsucker.config.settings import Settings
 from hudsuckerpy import ServiceDefinition
+import httplib2, re, os, socket
 
 HUDSUCKER_SERVICES = ['diagnostics', 'memcached']
 
@@ -100,7 +101,6 @@ class ContentProxy(LineOnlyReceiver):
     
     def lineReceived(self, data):
         print('Input data: ' + data)
-        
         try:
             self.service = parse_hudsucker_request(data)
         except Exception, detail:
@@ -148,11 +148,11 @@ class ContentProxy(LineOnlyReceiver):
                 self._sendResponse('KeyDoesntExist')
     
     def _process_diagnostics(self):
+        """Utilities for Hudsucker and server info"""
         content = ''
         self.requires_data_keys(['cmd'])
         cmd = self.service.data['cmd']
         if cmd == 'ping':
-            import socket
             servers = self.service.data['servers']
             if servers:
                 timeout_seconds = self.service.data['timeout_seconds']
@@ -171,7 +171,6 @@ class ContentProxy(LineOnlyReceiver):
                     except socket.error, detail:
                         content += "Can't connect to server '%s' on port %d: %s.\n" % (server, port, detail)
         elif cmd == 'delete_log':
-            import re, os
             pattern = 'twistd[.]log[.].*$'
             regex = re.compile(pattern)
             filename = self.service.data['filename']
@@ -221,7 +220,7 @@ class ContentProxy(LineOnlyReceiver):
                 print("ERROR: Doesn't have base URL: (%s)" % (sd.base_url))
                 self.transport.loseConnection()
             else:
-                import httplib2
+                
                 url = sd.get_url()
                 print('HTTP request: ' + url)
                 # Uncomment to enable HTTP caching.

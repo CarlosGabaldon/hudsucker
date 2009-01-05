@@ -46,6 +46,10 @@ class DemisauceRegistry(registry.Registry):
             dsservice.load_definition(request_key='request')
             service.base_url = dsservice.base_url
             service.format = dsservice.format
-            service.method_url = dsservice.get_url('none')
-            service.method_url = service.method_url.replace('%s/' % dsservice.base_url,'')
+            service.data.update({"api_key":'%s' % dsconfig.CFG['demisauce.apikey']})
+            if dsservice.url_format == None or dsservice.url_format == 'None':
+                service.url_pattern = dsservice.method_url
+            else:
+                service.url_pattern = dsservice.url_format
+            service.url_pattern = service.url_pattern.replace('{base_url}','')
         return service

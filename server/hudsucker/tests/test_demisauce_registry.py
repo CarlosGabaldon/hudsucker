@@ -34,7 +34,7 @@ class ServicesTests(unittest.TestCase):
         from hudsucker.registry.demisauce_registry import DemisauceRegistry
         registry = DemisauceRegistry(Settings)
         #print registry.config_tostr()
-        sd = registry.load_service(ServiceDefinition('comment',app='demisauce'))
+        sd = registry.load_service(ServiceDefinition('comment',app='demisauce',data={'key':'for_testing'}))
         assert str(sd.base_url) == 'http://localhost:4951'
         json = to_hudsucker_json(sd)
         print('json:  %s' % (json))
@@ -42,7 +42,7 @@ class ServicesTests(unittest.TestCase):
         resp = TCPServiceResponse(self.sock.recv(1024))
         print('content:   %s' % (resp.content))
         assert resp.content is not None
-        assert resp.is_success() == False
+        assert resp.is_success() == True
     
 
 if __name__ == "__main__":

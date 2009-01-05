@@ -52,6 +52,7 @@ class ServiceDefinition(object):
                 {"format":self.format,
                  "service":self.name,
                  "request":request})
+            print('data = %s' % self.data)
             return UrlFormatter(urlformat, self.data)
         else:
             return '%s/%s' % (self.base_url,self.url)
@@ -61,9 +62,9 @@ class ServiceDefinition(object):
     
 
 def to_hudsucker_json(service):
-    """Create a Hudsucker formatted request"""
-    #TODO:   move this to a demisaucepy transport?
-    """{"app": "delicious.com", 
+    """Create a Hudsucker formatted request
+    
+    {"app": "delicious.com", 
                         "service": "rss_feed_for_test_only",
                         "url_pattern": "/v2/rss/tag/python?count=5",
                         "base_url":  "http://feeds.delicious.com"
@@ -80,7 +81,9 @@ def to_hudsucker_json(service):
                     "format":service.format
                 },
             "version":'1.1'}
-            
+    
+    
+    py_json['params'].update(service.data)
     import simplejson
     json = simplejson.dumps(py_json)
     return '%s\r\n' % json
