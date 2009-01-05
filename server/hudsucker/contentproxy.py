@@ -17,10 +17,11 @@ def parse_hudsucker_request(data):
     json v1.1::
         {"app": "hudsucker", 
          "service": "memcached",
-         "version":"v1.1",
+         "version":"1.1", 
+         "expiry_minutes": "60",
          "params": {"key": "some_key", 
-                    "value": "some_value", 
-                    "expiry_minutes": "60"}}
+                    "value": "some_value"}
+        }
     """
     import simplejson
     sd = ServiceDefinition('tbd')
@@ -44,37 +45,35 @@ def parse_hudsucker_request(data):
             if not params.has_key('request_path'):
                 raise Exception('Remote Content Services Require a Request Path')
             else:
-                sd.method_url = str(params['request_path'])
+                sd.url_pattern = str(params['request_path'])
         if 'expiry_minutes' in params:
             sd.cache_time = float(params['expiry_minutes']) * 60
         else:
             sd.cache_time = 0
         sd.data = params
         
-    elif str(command['version']) == 'v1.1':
+    elif str(command['version']) == '1.1':
         # new versionable request's
         if not command.has_key('app'):
-            raise Exception('Requires an App to be specified:   {"app": "hudsucker","version":"v1.1",....')
+            raise Exception('Requires an App to be specified:   {"app": "hudsucker","version":"1.1",....')
         sd.app = str(command['app'])
         if not command.has_key('service'):
-            raise Exception('Requires a Service to be specified:   {"app": "hudsucker", "service":"myservice","version":"v1.1",....')
+            raise Exception('Requires a Service to be specified:   {"app": "hudsucker", "service":"myservice","version":"1.1",....')
         sd.name = str(command['service'])
-        if params.has_key('request_path'):
-            print('setting sd.method_url = %s' % (params['request_path']))
-            sd.method_url = str(params['request_path'])
-        if 'expiry_minutes' in params:
-            sd.cache_time = float(params['expiry_minutes']) * 60
+        if command.has_key('url_pattern'):
+            #print('setting sd.url_pattern = %s' % (command['url_pattern']))
+            sd.url_pattern = str(command['url_pattern'])
+        if 'expiry_minutes' in command:
+            sd.cache_time = float(command['expiry_minutes']) * 60
         else:
             sd.cache_time = 0
         sd.format = 'gadgetmini'
         if params.has_key('format'):
             sd.format = str(params.get('format'))
-        if params.has_key('base_url'):
-            sd.base_url = str(params['base_url'])
-        if params.has_key('url_patterns'):
-            up = params['url_patterns']
-            for urlpat in up:
-                sd.url_patterns.append(str(urlpat))
+        if command.has_key('base_url'):
+            sd.base_url = str(command['base_url'])
+        if command.has_key('base_url') and command.has_key('url_pattern'):
+            sd.isdefined = True
         sd.data = params
     else:
         raise Exception('Unknown Request Format')
@@ -104,9 +103,10 @@ class ContentProxy(LineOnlyReceiver):
         import simplejson
         command = {}
         print('Input data: ' + data)
+        command = simplejson.loads(data)
+        self.service_def = parse_hudsucker_request(data)
         try:
-            command = simplejson.loads(data)
-            self.service_def = parse_hudsucker_request(data)
+            pass
         except Exception, detail:
             print('ERROR: Decoding JSON input: %s' % detail)
             self.transport.loseConnection()
@@ -211,7 +211,8 @@ class ContentProxy(LineOnlyReceiver):
         First get service definition, then fulfill
         """
         sd = self.service_def
-        content_key = 'aps_%s_%s_%s' % (sd.app, sd.name, sd.method_url)
+        #TODO:  hash this to ensure it is a short key
+        content_key = "app_%s_%s_%s" % (sd.app,sd.name,sd.get_url())
         content = self.factory.cache_get(content_key)
         if content:
             self._sendResponse(content)
@@ -219,89 +220,70 @@ class ContentProxy(LineOnlyReceiver):
             # Try loading from service registry.
             if self.factory.service_registry and self.service_def.isdefined == False:
                 self.factory.service_registry.load_service(service=self.service_def)
-                print('app=%s, service=%s, base_url=%s,url_patterns = %s' % (sd.app,sd.name,sd.base_url,sd.url_patterns))
+                print('app=%s, service=%s, base_url=%s,url_pattern = %s' % (sd.app,sd.name,sd.base_url,sd.url_pattern))
             if not self.service_def.base_url:
                 print("ERROR: Doesn't have base URL: (%s)" % (sd.base_url))
                 self.transport.loseConnection()
-            #elif not sd.url_patterns:
-            #    print("ERROR: Can't load URL patterns: (%s)" % (sd.url_patterns))
-            #    self.transport.loseConnection()
             else:
-                import re
-                matched = False
-                if sd.url_patterns != None and sd.url_patterns != []:
-                    for url_pattern in sd.url_patterns:
-                        regex = re.compile(url_pattern.strip())
-                        if regex.match(sd.method_url):
-                            matched = True
-                            break
-                            
-                    print('in Matched but nothing found %s' % (sd.url_patterns))
+                import httplib2
+                url = sd.get_url()
+                print('HTTP request: ' + url)
+                # Uncomment to enable HTTP caching.
+                #http = httplib2.Http('.cache')
+                timeout_seconds = self.factory.cache_get('aps_http_timeout_seconds')
+                if not timeout_seconds:
+                    timeout_seconds = Settings.server.get('http_timeout_seconds')
+                if not timeout_seconds:
+                    http = httplib2.Http()
                 else:
-                    # temp?  Why do we need url_patterns?
-                    print('in Matched = True %s' % (sd.url_patterns))
-                    matched = True
-                if matched:
-                    import httplib2
-                    widget_url = '%s%s' % (sd.base_url,sd.method_url)
-                    # Uncomment to enable HTTP caching.
-                    #http = httplib2.Http('.cache')
-                    timeout_seconds = self.factory.cache_get('aps_http_timeout_seconds')
-                    if not timeout_seconds:
-                        timeout_seconds = Settings.server.get('http_timeout_seconds')
-                    if not timeout_seconds:
-                        http = httplib2.Http()
-                    else:
-                        http = httplib2.Http(timeout=int(timeout_seconds))
-                    try:
-                        print('HTTP request: ' + widget_url)
-                        resp, service_content = http.request(widget_url)
-                        if resp.status == 200 and sd.format in ['html','xml']:
-                            self._sendResponse(service_content)
-                        elif resp.status == 200 and sd.format == 'gadgetmini':
-                            # TODO:  move this to ServiceResponse.from_gadgetmini()
-                            from xml.etree import ElementTree
-                            doc = ElementTree.fromstring(service_content)
-                            content_element = doc.find('Content')
-                            # Why does this keep returning true: if not content_element?
-                            if content_element == None:
-                                self._sendResponse("NoContent")
-                            else:
-                                content = content_element.text
-                                if content:
-                                    try:
-                                        content = content.encode('utf-8', 'replace')
-                                    except Exception, detail:
-                                        print('WARNING: UTF-8 encoding of remote HTML failed: %s.' % detail)
-                                        self._sendResponse('BadEncoding')
-                                    else:
-                                        try:
-                                            moduleprefs_element = doc.find('ModulePrefs')
-                                            cache = moduleprefs_element.get('cache')
-                                            expiry_minutes = None
-                                            if cache == 'true':
-                                                expiry_minutes = moduleprefs_element.get('cache_expiry_minutes')
-                                            if expiry_minutes == None and cache != 'false':
-                                                expiry_minutes = self.factory.cache_get('aps_%s_%s_content_expiry_minutes' % (self.service, widget))
-                                                if expiry_minutes == None:
-                                                    expiry_minutes = Settings.memcached.get('content_expiry_minutes')
-                                                    if expiry_minutes == None:
-                                                        expiry_minutes = CONTENT_EXPIRY_MINUTES
-                                            if expiry_minutes != None and not self.factory.cache_set(content_key, content, float(expiry_minutes)):
-                                                raise Exception('Set operation failed.')
-                                        except Exception, detail:
-                                            print("WARNING: Can't cache content: %s." % detail)
-                                        finally:
-                                            self._sendResponse(content)
-                                else:
-                                    self._sendResponse('EmptyContent')
+                    http = httplib2.Http(timeout=int(timeout_seconds))
+                try:
+                    
+                    resp, service_content = http.request(url)
+                    if resp.status == 200 and sd.format in ['html','xml']:
+                        self._sendResponse(service_content)
+                    elif resp.status == 200 and sd.format == 'gadgetmini':
+                        # TODO:  move this to ServiceResponse.from_gadgetmini()
+                        from xml.etree import ElementTree
+                        doc = ElementTree.fromstring(service_content)
+                        content_element = doc.find('Content')
+                        # Why does this keep returning true: if not content_element?
+                        if content_element == None:
+                            self._sendResponse("NoContent")
                         else:
-                            print('WARNING: %s returned HTTP status code %d.' % (widget_url, resp.status))
-                    except Exception, detail:
-                        print('ERROR: HTTP request for %s has failed: %s.' % (widget_url, detail))
-                        self.transport.loseConnection()
-                else:
-                    print("ERROR: Request URL doesn't match any URL patterns: %s." % url_patterns)
+                            content = content_element.text
+                            if content:
+                                try:
+                                    content = content.encode('utf-8', 'replace')
+                                except Exception, detail:
+                                    print('WARNING: UTF-8 encoding of remote HTML failed: %s.' % detail)
+                                    self._sendResponse('BadEncoding')
+                                else:
+                                    try:
+                                        #TODO:  refactor this to store it in the already cached service def's, not in memcache
+                                        moduleprefs_element = doc.find('ModulePrefs')
+                                        cache = moduleprefs_element.get('cache')
+                                        expiry_minutes = None
+                                        if cache == 'true':
+                                            expiry_minutes = moduleprefs_element.get('cache_expiry_minutes')
+                                        if expiry_minutes == None and cache != 'false':
+                                            expiry_minutes = self.factory.cache_get('aps_%s_content_expiry_minutes' % (self.sd.name))
+                                            if expiry_minutes == None:
+                                                expiry_minutes = Settings.memcached.get('content_expiry_minutes')
+                                                if expiry_minutes == None:
+                                                    expiry_minutes = CONTENT_EXPIRY_MINUTES
+                                        if expiry_minutes != None and not self.factory.cache_set(content_key, content, float(expiry_minutes)):
+                                            raise Exception('Set operation failed.')
+                                    except Exception, detail:
+                                        print("WARNING: Can't cache content: %s." % detail)
+                                    finally:
+                                        self._sendResponse(content)
+                            else:
+                                self._sendResponse('EmptyContent')
+                    else:
+                        print('WARNING: %s returned HTTP status code %d.' % (url, resp.status))
+                except Exception, detail:
+                    print('ERROR: HTTP request for %s has failed: %s.' % (url, detail))
                     self.transport.loseConnection()
     
     def _writeContentMeta(self, content):

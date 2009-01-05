@@ -2,17 +2,15 @@
 app: workshops
 service: nearme
 base_url: http://localhost
-params:
-    url_pattern: /{service}/{zip}/
+url_pattern: /{service}/{zip}/
 ---
 app: workshops
 service: anotherwidget
 base_url: http://localhost
-params:
-    url_pattern: /{service}/{zip}/{another}
+url_pattern: /{service}/{zip}/{another}
 ---
 app: delicious.com
 service: tag
 base_url: http://delicious.com
-params:
-    url_pattern: /tag/widget
+url_pattern: /tag/{tag}
+

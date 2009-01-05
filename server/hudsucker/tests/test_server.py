@@ -73,13 +73,13 @@ class ServicesTests(unittest.TestCase):
         """Test the ability to create fully functional service with no registry"""
         self.sock.send('''{"app": "delicious.com", 
                             "service": "rss_feed_for_test_only",
+                            "base_url": "http://feeds.delicious.com",
+                            "url_pattern": "/v2/rss/tag/{tag}?count=5",
                             "params": {
-                                "request_path": "/v2/rss/tag/python?count=5",
-                                "format":"xml",
-                                "base_url":  "http://feeds.delicious.com",
-                                "url_patterns": ["/v2/rss"]
+                                "format": "xml",
+                                "tag": "python"
                             },
-                            "version":"v1.1"
+                            "version":"1.1"
                         }\r\n''')
         resp = TCPServiceResponse(sock_data(self.sock))
         #print('resp.content for delicius request:  %s' % resp.content)
@@ -110,20 +110,30 @@ class ServicesTests(unittest.TestCase):
         assert sd.cache_time == 0
         assert sd.name == 'nearme'
         assert sd.app == 'workshops'
-        assert sd.method_url == '/nearme/123/08/2008/50/'
-        sd = parse_hudsucker_request('''{"app":"hudsucker", "service": "memcached", "version":"v1.1",
-            "params": {"key": "some_key", "value": "some_value", "expiry_minutes": "60"}}\r\n''')
+        assert sd.url_pattern == '/nearme/123/08/2008/50/'
+        sd = parse_hudsucker_request('''
+                {"app":"hudsucker", 
+                 "service": "memcached", 
+                 "version":"1.1",
+                 "expiry_minutes": "60",
+                 "params": {"key": "some_key", "value": "some_value"}
+                }\r\n''')
         assert sd.cache_time == 3600
         assert sd.name == 'memcached'
         assert sd.app == 'hudsucker'
         assert sd.data.has_key('key')
         assert sd.data['value'] == 'some_value'
-        sd = parse_hudsucker_request('''{"app": "workshops", "service":"nearme", "version":"v1.1",
-            "params": {"request_path": "/nearme/123/08/2008/50/"}}''')
+        sd = parse_hudsucker_request('''
+                {"app": "workshops", 
+                 "service":"nearme", 
+                 "version":"1.1",
+                 "url_pattern": "/nearme/123/08/2008/50/",
+                 "params": {}
+                }''')
         assert sd.cache_time == 0
         assert sd.name == 'nearme'
         assert sd.app == 'workshops'
-        assert sd.method_url == '/nearme/123/08/2008/50/'
+        assert sd.url_pattern == '/nearme/123/08/2008/50/'
     
     def test_yaml_registry(self):
         """Test that we can load the YAML registry
@@ -131,16 +141,23 @@ class ServicesTests(unittest.TestCase):
         from hudsucker.registry.yaml_registry import YamlRegistry
         registry = YamlRegistry(Settings,yaml_file)
         assert registry.db is not None
-        sd = registry.load_service(ServiceDefinition('nearme',app='workshops'))
+        sd = registry.load_service(ServiceDefinition('nearme',app='workshops',data={'zip':'85281'}))
         assert sd.base_url == 'http://localhost'
-        assert sd.url_patterns[0] == '/{service}/{zip}/'
-        sd = parse_hudsucker_request('''{"service": "delicious.com", "params": {"widget": "tag", 
-                                            "request_path": "/tag/widgets",
-                                            "format":"html"}}\r\n''')
+        assert sd.url_pattern == '/{service}/{zip}/'
+        assert sd.get_url() == 'http://localhost/nearme/85281/'
+        sd = parse_hudsucker_request('''{
+                    "app": "delicious.com",
+                    "service": "tag", 
+                    "params": {"tag": "web2.0",
+                                "format":"html"},
+                    "version":"1.1"
+                    }\r\n''')
         sd = registry.load_service(sd)
         assert sd.app == 'delicious.com'
         assert sd.name == 'tag'
+        assert sd.url_pattern == '/tag/{tag}'
         assert sd.base_url == 'http://delicious.com'
+        assert sd.get_url() == 'http://delicious.com/tag/web2.0'
     
 
 if __name__ == "__main__":

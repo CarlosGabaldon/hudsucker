@@ -38,18 +38,16 @@ class OracleRegistry(registry.Registry):
                 sql = """
                     select s.url base_url, u.pattern url_pattern
                     from service_provider s, widget w, widget_url_pattern u
-                    where s.name = :service_name and w.name = :widget_name
+                    where s.name = :app_name and w.name = :service_name
                     """
-                cursor.execute(sql, service_name=service.app, widget_name=service.name)
+                cursor.execute(sql, app_name=service.app, service_name=service.name)
                 rows = cursor.fetchall()
                 if rows:
                     service.base_url = rows[0][0]
                     print('found SDW.row  base_url = %s' % (service.base_url))
-                    for row in rows:
-                        service.url_patterns.append(row[1])
                 
                 else:
-                    print("WARNING: No rows for app(service) '%s' and widget(service) '%s'." % (service.app, service.name))
+                    print("WARNING: No rows for app '%s' and service '%s'." % (service.app, service.name))
             except Exception, detail:
                 print("WARNING: Can't load base URL and URL patterns from database: %s." % detail)
             finally:

@@ -2,16 +2,9 @@ import registry
 try:
     import yaml
 except Exception:
-    print("""Missing Dependency: The PyYAML 
-             module that allows access to 
-             Yaml files must be installed.
-             Please install from here:
-             http://pyyaml.org/wiki/PyYAML
-            """)
-
-
-#http://pyyaml.org/download/pyyaml/PyYAML-3.06.tar.gz
-
+    print("""Missing Dependency: The PyYAML module that allows access to 
+             Yaml files must be installed.  Please install from here:
+             http://pyyaml.org/wiki/PyYAML""")
 
 class YamlRegistry(registry.Registry):
     """A Service Definition registry that stores info in local 
@@ -21,7 +14,10 @@ class YamlRegistry(registry.Registry):
         super(YamlRegistry, self).__init__(settings)
         try:
             stream = file(yaml_file,'r')
-            self.db = [svc for svc in yaml.load_all(stream)]
+            services = [svc for svc in yaml.load_all(stream)]
+            self.db = {}
+            for svc in services:
+                self.db[svc['service']] = svc
         except Exception, detail:
             raise Exception(yaml_file)
             print("WARNING: Can't get YAML file: %s." % detail)
@@ -34,10 +30,9 @@ class YamlRegistry(registry.Registry):
         """
         if service is None:
             raise Exception("must have service defintion to know which to load")
-        found = False
-        for svc in self.db:
-            if svc['service'] == service.name and svc['app'] == service.app:
-                found = True
-                service.base_url = svc['base_url']
-                service.url_patterns.append(svc['params']['url_pattern'])
+        if self.db.has_key(service.name):
+            service.base_url = self.db[service.name]['base_url']
+            if service.url_pattern == None:
+                service.url_pattern = self.db[service.name]['url_pattern']
         return service
+    
