@@ -14,9 +14,9 @@ class DemisauceRegistry(registry.Registry):
     service registry on a demisauce server"""
     def __init__(self, settings):
         super(DemisauceRegistry, self).__init__(settings=settings)
-        api_key = settings.service_registry['api_key']
-        url = settings.service_registry['source']
-        appname = settings.service_registry['appname']
+        api_key = settings.registry_config['api_key']
+        url = settings.registry_config['source']
+        appname = settings.registry_config['appname']
         try:
             dsconfig.CFG['demisauce.apikey'] = api_key or 'a95c21ee8e64cb5ff585b5f9b761b39d7cb9a202'
             dsconfig.CFG['demisauce.url'] = url or 'http://localhost:4951'

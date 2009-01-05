@@ -47,12 +47,12 @@ class ServiceDefinition(object):
                 urlformat =  '%s%s' % (self.base_url,self.url_pattern)
             else:
                 urlformat =  '%s/%s' % (self.base_url,self.url_pattern)
-            print('urlformat = %s' % (urlformat))
+            #print('urlformat = %s' % (urlformat))
             self.data.update(
                 {"format":self.format,
                  "service":self.name,
                  "request":request})
-            print('data = %s' % self.data)
+            #print('data = %s' % self.data)
             return UrlFormatter(urlformat, self.data)
         else:
             return '%s/%s' % (self.base_url,self.url)

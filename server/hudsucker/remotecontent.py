@@ -5,7 +5,7 @@ Hudsucker entry point.
 
 
 """
-import os
+import os, sys
 from twisted.internet import protocol
 from twisted.protocols.basic import LineOnlyReceiver
 from twisted.application import service, internet
