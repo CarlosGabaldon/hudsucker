@@ -1,48 +1,9 @@
 #!/usr/bin/env python
 from twisted.protocols.basic import LineOnlyReceiver
 from hudsucker.config.settings import Settings
+from hudsuckerpy import ServiceDefinition
 
 HUDSUCKER_SERVICES = ['diagnostics', 'memcached']
-
-class ServiceDefinition(object):
-    """
-    service definition 
-    
-    :name: name of remote service
-    :format: format (json,xml,html,rss,xmlrpc) of remote service
-    :app: url friendly name of app  (hudsucker, workshops, delicious):  
-    :cache: True/Fals to use cache default = True
-    :cache_time: in seconds, default = 15 minutes
-    :method_url:  url part of this service (many services/app=base_url)
-    :url_format:  a simple string substitution of any of available values
-    :api_key: secret api key for service
-    :data: dict of name/value pair's to be added to request  (get/post)
-    :base_url:  base url of the "app" (each app has many services, 
-        shared base_url) ex:  http://demisauce.demisauce.com
-        note, NOT trailing slash
-    :cache:  default = True, to use cache or not
-    """
-    _service_keys = ['name']
-    def __init__(self, name,format='xml', data={},app='hudsucker',
-            base_url=None,api_key=None,local_key='id',cache=True,cache_time=900):
-        self.name = name
-        self.format = format
-        self.app = app
-        self.cache = cache
-        self.cache_time = cache_time # 15 minutes
-        self.url_format = "{base_url}/api/{format}/{service}/{key}?apikey={api_key}"
-        self.data = data
-        self.isdefined = False
-        self.needs_service_def = True
-        self.method_url = None
-        self.service_registry = None
-        self.base_url = base_url
-        # new
-        self.url_patterns = []
-    
-    def __str__(self):
-        return "{name:'%s',app:'%s',format:'%s',base_url:'%s'}" % (self.name,self.app,self.format,self.base_url)
-    
 
 def parse_hudsucker_request(data):
     """Parse request into Service Definition
@@ -99,6 +60,7 @@ def parse_hudsucker_request(data):
             raise Exception('Requires a Service to be specified:   {"app": "hudsucker", "service":"myservice","version":"v1.1",....')
         sd.name = str(command['service'])
         if params.has_key('request_path'):
+            print('setting sd.method_url = %s' % (params['request_path']))
             sd.method_url = str(params['request_path'])
         if 'expiry_minutes' in params:
             sd.cache_time = float(params['expiry_minutes']) * 60
@@ -261,20 +223,27 @@ class ContentProxy(LineOnlyReceiver):
             if not self.service_def.base_url:
                 print("ERROR: Doesn't have base URL: (%s)" % (sd.base_url))
                 self.transport.loseConnection()
-            elif not sd.url_patterns:
-                print("ERROR: Can't load URL patterns: (%s)" % (sd.url_patterns))
-                self.transport.loseConnection()
+            #elif not sd.url_patterns:
+            #    print("ERROR: Can't load URL patterns: (%s)" % (sd.url_patterns))
+            #    self.transport.loseConnection()
             else:
                 import re
                 matched = False
-                for url_pattern in sd.url_patterns:
-                    regex = re.compile(url_pattern.strip())
-                    if regex.match(sd.method_url):
-                        matched = True
-                        break                   
+                if sd.url_patterns != None and sd.url_patterns != []:
+                    for url_pattern in sd.url_patterns:
+                        regex = re.compile(url_pattern.strip())
+                        if regex.match(sd.method_url):
+                            matched = True
+                            break
+                            
+                    print('in Matched but nothing found %s' % (sd.url_patterns))
+                else:
+                    # temp?  Why do we need url_patterns?
+                    print('in Matched = True %s' % (sd.url_patterns))
+                    matched = True
                 if matched:
                     import httplib2
-                    widget_url = sd.base_url + sd.method_url
+                    widget_url = '%s%s' % (sd.base_url,sd.method_url)
                     # Uncomment to enable HTTP caching.
                     #http = httplib2.Http('.cache')
                     timeout_seconds = self.factory.cache_get('aps_http_timeout_seconds')

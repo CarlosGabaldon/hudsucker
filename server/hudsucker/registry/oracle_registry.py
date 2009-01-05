@@ -8,7 +8,8 @@ except Exception:
              Please install from here:
              http://python.net/crew/atuining/cx_Oracle/
             """)
-from server.contentproxyfactory import ContentProxyFactory
+from hudsucker.contentproxyfactory import ContentProxyFactory
+from hudsuckerpy import ServiceDefinition
 
 class OracleRegistry(registry.Registry):
     """docstring for OracleRegistry"""
@@ -27,7 +28,7 @@ class OracleRegistry(registry.Registry):
         """Load Service definition from oracle db"""
         db = None
         service_def_key = 'service_def_%s_%s' % (service.app,service.name)
-        service_def = ContentProxyFactory.get(service_def_key)
+        service_def = ContentProxyFactory.cache_get(service_def_key)
         if not service_def:
             try:
                 print('Attempting to load base URL and URL patterns from database.')
@@ -43,6 +44,7 @@ class OracleRegistry(registry.Registry):
                 rows = cursor.fetchall()
                 if rows:
                     service.base_url = rows[0][0]
+                    print('found SDW.row  base_url = %s' % (service.base_url))
                     for row in rows:
                         service.url_patterns.append(row[1])
                 
@@ -56,7 +58,7 @@ class OracleRegistry(registry.Registry):
             service_def = ServiceDefinition(service.name,app=service.app)
             service_def.base_url = service.base_url
             service_def.url_patterns = service.url_patterns
-            ContentProxyFactory.set(service_def_key,service_def)
+            ContentProxyFactory.cache_set(service_def_key,service_def)
         else:
             # now transfer service_def -> service
             service.base_url = service_def.base_url

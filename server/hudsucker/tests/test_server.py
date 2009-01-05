@@ -5,8 +5,8 @@ import sys, logging, unittest, string, os
 from socket import *
 from hudsuckerpy.contentclient import TCPServiceResponse
 from hudsucker.config.settings import Settings
-from hudsucker.contentproxy import parse_hudsucker_request, \
-    ServiceDefinition
+from hudsucker.contentproxy import parse_hudsucker_request
+from hudsuckerpy import ServiceDefinition
 from hudsucker.remotecontent import here as base_dir
 config_file = os.path.abspath('%s/config/settings.config' % (base_dir))
 settings = Settings.load_xml(config=config_file )
@@ -141,17 +141,6 @@ class ServicesTests(unittest.TestCase):
         assert sd.app == 'delicious.com'
         assert sd.name == 'tag'
         assert sd.base_url == 'http://delicious.com'
-    
-    def test_demisauce_registry(self):
-        from hudsucker.registry.demisauce_registry import DemisauceRegistry
-        #registry = DemisauceRegistry(Settings)
-        #assert registry.db is not None
-        return
-        #sd = registry.load_service(ServiceDefinition('comments',app='demisauce'))
-        #print('base_url, url_patterns = %s, %s' % (base_url, url_patterns))
-        #assert str(base_url) == 'http://localhost:4951'
-        #assert url_patterns == []
-        #TODO:  this is bogus, finish
     
 
 if __name__ == "__main__":

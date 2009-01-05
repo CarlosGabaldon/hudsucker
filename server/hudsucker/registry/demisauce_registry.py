@@ -26,20 +26,26 @@ class DemisauceRegistry(registry.Registry):
         except Exception, detail:
             print("WARNING: Can't connect to demisauce: %s." % detail)
     
-    def load_service(self,app='demisauce',service='poll'):
+    def config_tostr(self):
+        return "url:%s, apikey=%s, cache=%s" % (dsconfig.CFG['demisauce.url'] ,
+            dsconfig.CFG['demisauce.apikey'],dsconfig.CFG['cacheservers'] )
+    
+    def load_service(self,service):
         """Loads service Registry"""
         
-        service=demisaucepy.ServiceDefinition(
-            name=service,
+        dsservice=demisaucepy.ServiceDefinition(
+            name=service.name,
             format='xml',
-            app_slug=app
+            app_slug=service.app
         )
         from demisaucepy.cache import cache
         #print('in load_service cfg.CFG["demisauce.url"] = %s' % (dsconfig.CFG['demisauce.url']))
-        if not service.isdefined and service.needs_service_def == True:
-            print('ServiceClient:  calling service definition load %s/%s' % (service.app_slug,service.name))
-            service.load_definition(request_key='request')
-        if service.method_url == None:
-            return service.base_url, []
-        return service.base_url, [service.method_url]
-    
+        if not dsservice.isdefined and dsservice.needs_service_def == True:
+            print('DemisauceRegistry_load:  calling service definition load %s/%s' % (dsservice.app_slug,dsservice.name))
+            dsservice.cache = False
+            dsservice.load_definition(request_key='request')
+            service.base_url = dsservice.base_url
+            service.format = dsservice.format
+            service.method_url = dsservice.get_url('none')
+            service.method_url = service.method_url.replace('%s/' % dsservice.base_url,'')
+        return service
