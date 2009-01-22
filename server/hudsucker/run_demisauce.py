@@ -31,4 +31,4 @@ if platformType == "win32":
 
 if __name__ == '__main__':
     # run twistd using yaml runner
-    os.system("twistd -y run_proxy_demisaucereg.py -n -d %s" % (here))
+    os.system("twistd -y run_demisauce.py -n -d %s" % (here))
