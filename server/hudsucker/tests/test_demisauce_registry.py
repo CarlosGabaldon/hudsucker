@@ -20,6 +20,7 @@ def sock_data(sock):
             break
         rsp += data
     return rsp
+    
 
 class ServicesTests(unittest.TestCase):
     def setUp(self):
@@ -35,7 +36,10 @@ class ServicesTests(unittest.TestCase):
         registry = DemisauceRegistry(Settings)
         #print registry.config_tostr()
         sd = registry.load_service(ServiceDefinition('comment',app='demisauce',data={'key':'for_testing'}))
-        assert str(sd.base_url) == 'http://localhost:4951'
+        #print('sd.base_url:  %s' % sd.base_url)
+        #print('config_file:  %s' % config_file)
+        #print('demisauce service uri:  %s' % Settings.registry_config['source'])
+        assert str(sd.base_url) == Settings.registry_config['source']
         json = to_hudsucker_json(sd)
         print('json:  %s' % (json))
         self.sock.send('%s\r\n' % json)
